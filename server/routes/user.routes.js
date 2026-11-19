@@ -1,26 +1,58 @@
 
 import express from "express";
+import User from "../models/user.model.js";
 import userCtrl from "../controllers/user.controller.js";
 import authCtrl from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
-// Create a new user
-router.route("/api/users").post(userCtrl.create);
+// Check whether the signed-in user is an administrator
+const requireAdmin = async (req, res, next) => {
+  try {
+    const admin = await User.findById(req.auth._id);
 
-// Get all users
-router.route("/api/users").get(userCtrl.list);
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({
+        error: "Admin access required",
+      });
+    }
 
-// Delete all users (JWT required)
-router.route("/api/users").delete(
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      error: "Could not verify admin permissions",
+    });
+  }
+};
+
+// CREATE - Public registration
+// The controller always assigns role: "user"
+router.post("/api/users", userCtrl.create);
+
+// READ - Admin can list all users
+router.get(
+  "/api/users",
   authCtrl.requireSignin,
+  requireAdmin,
+  userCtrl.list
+);
+
+// DELETE ALL - Admin only
+router.delete(
+  "/api/users",
+  authCtrl.requireSignin,
+  requireAdmin,
   userCtrl.removeAll
 );
 
-// Get, update, or delete a user by ID
+// READ, UPDATE, DELETE individual users
 router
   .route("/api/users/:userId")
-  .get(authCtrl.requireSignin, userCtrl.read)
+  .get(
+    authCtrl.requireSignin,
+    authCtrl.hasAuthorization,
+    userCtrl.read
+  )
   .put(
     authCtrl.requireSignin,
     authCtrl.hasAuthorization,
@@ -32,7 +64,7 @@ router
     userCtrl.remove
   );
 
-// Find user by ID
+// Load the requested user
 router.param("userId", userCtrl.userByID);
 
 export default router;

@@ -1,31 +1,62 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
+
+import { useState } from "react";
+import { apiRequest } from "../api";
 
 function Contact() {
-  const navigate = useNavigate()
-
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: '',
-    message: '',
-  })
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    message: "",
+  });
+
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function handleChange(event) {
-    const { name, value } = event.target
+    const { name, value } = event.target;
 
-    setFormData((previousData) => ({
-      ...previousData,
+    setFormData((previous) => ({
+      ...previous,
       [name]: value,
-    }))
+    }));
   }
 
-  function handleSubmit(event) {
-    event.preventDefault()
+  async function handleSubmit(event) {
+    event.preventDefault();
 
-    // Pass the captured form values to Home without sending an email.
-    navigate('/', { state: { contactSubmission: formData } })
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await apiRequest("/api/contacts", {
+        method: "POST",
+        body: JSON.stringify({
+          firstname: formData.firstName,
+          lastname: formData.lastName,
+          phone: formData.phone,
+          email: formData.email,
+          message: formData.message,
+        }),
+      });
+
+      setSuccess("Your message was submitted successfully!");
+
+      setFormData({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        message: "",
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -88,13 +119,33 @@ function Contact() {
           required
         />
 
-        <p>This demo captures your entries but does not send an email.</p>
-        <button className="button-link" type="submit">
-          Submit message
+        {success && (
+          <p role="status" style={{ color: "green" }}>
+            {success}
+          </p>
+        )}
+
+        {error && (
+          <p role="alert" style={{ color: "red" }}>
+            {error}
+          </p>
+        )}
+
+        <p>
+          Your message will be saved securely in the
+          portfolio database. This form does not send email.
+        </p>
+
+        <button
+          className="button-link"
+          type="submit"
+          disabled={loading}
+        >
+          {loading ? "Submitting..." : "Submit message"}
         </button>
       </form>
     </main>
-  )
+  );
 }
 
-export default Contact
+export default Contact;
